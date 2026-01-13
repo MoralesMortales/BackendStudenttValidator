@@ -3,10 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Student, AttendanceHistory
 from .serializer import StudentSerializer
-import numpy as np
-import cv2
-from pyzbar.pyzbar import decode
-from django.http import JsonResponse
+
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache 
 from django.utils import timezone
@@ -19,27 +16,9 @@ from .models import Student, AttendanceHistory
 from .serializer import StudentSerializer, AttendanceHistorySerializer
 from datetime import datetime
 from django.core.paginator import Paginator  # <--- ESTA ES LA LÍNEA QUE FALTA
-
-class StudentListCreateView(generics.ListCreateAPIView):
-    """
-    VENTANA PRINCIPAL: 
-    - GET: Lista todos los estudiantes.
-    - POST: Botón de 'Crear' nuevo estudiante.
-    """
-    queryset = Student.objects.all()
-    serializer_class = StudentSerializer
-
-class StudentDetailDeleteView(generics.RetrieveDestroyAPIView):
-    """
-    DETALLES Y ELIMINACIÓN:
-    - GET: Ver info detallada de un estudiante.
-    - DELETE: Botón de 'Eliminar' estudiante.
-    """
-    queryset = Student.objects.all()
-    serializer_class = StudentSerializer
-
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Student, AttendanceHistory
+import pytz # Asegúrate de tener pytz instalado (pip install pytz)
 
 def login_view(request):
     if request.method == 'POST':
@@ -86,13 +65,10 @@ def dashboard_students(request):
     
     return render(request, 'students_list.html', {'page_obj': page_obj})
 
-# --- VISTA: ELIMINAR ESTUDIANTE ---
 def delete_student(request, cedula):
     student = get_object_or_404(Student, cedula=cedula)
     student.delete()
     return redirect('dashboard_students')
-
-import pytz # Asegúrate de tener pytz instalado (pip install pytz)
 
 def view_history(request):
     if not request.session.get('is_logged_in'):
@@ -168,70 +144,6 @@ def register_attendance(request):
             
         serializer = AttendanceHistorySerializer(logs, many=True)
         return Response(serializer.data)
-
-def processQR(request):
-    if request.method == 'POST':
-        try:
-            # 1. Identificar qué bloque está llegando
-            block_id = request.GET.get('block')
-            if block_id is None:
-                return JsonResponse({"status": "error", "message": "No block ID"}, status=400)
-            
-            block_id = int(block_id)
-            new_data = request.body
-            print(f"Recibido Bloque {block_id}: {len(new_data)} bytes")
-
-            # 2. Recuperar la imagen parcial de la caché
-            # 'qr_buffer' guardará los bytes acumulados
-            full_data = cache.get('qr_buffer', b'')
-            
-            # Si es el primer bloque (0), reiniciamos el buffer
-            if block_id == 0:
-                full_data = new_data
-            else:
-                full_data += new_data
-            
-            # Guardar el avance en la caché (expira en 30 seg por seguridad)
-            cache.set('qr_buffer', full_data, 30)
-
-            # 3. ¿Es el último bloque? (El bloque 11 es el final de 12)
-            if block_id == 11:
-                print(f"Imagen completa. Total bytes: {len(full_data)}")
-                
-                if len(full_data) < 19200:
-                    # Si faltan bytes, rellenamos con negro (0) para evitar error de reshape
-                    full_data = full_data.ljust(19200, b'\x00')
-                
-                # Tomamos exactamente los 19200 bytes finales
-                raw_bytes = full_data[:19200]
-                img_array = np.frombuffer(raw_bytes, dtype=np.uint8)
-                img = img_array.reshape((120, 160))
-
-                # --- TU PROCESAMIENTO ---
-                img_blur = cv2.GaussianBlur(img, (3, 3), 0)
-                _, img_bin = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                
-                # Guardar para debug
-                cv2.imwrite("debug_final.jpg", img)
-                cv2.imwrite("debug_binario.jpg", img_bin)
-
-                decoded_objects = decode(img_bin)
-                cache.delete('qr_buffer') # Limpiar memoria
-
-                if decoded_objects:
-                    content = decoded_objects[0].data.decode("utf-8")
-                    return JsonResponse({"status": "found", "content": content})
-                
-                return JsonResponse({"status": "not_found", "message": "No QR detectado"}, status=200)
-
-            # Si no es el último bloque, solo avisamos que lo recibimos
-            return JsonResponse({"status": "chunk_received", "block": block_id})
-
-        except Exception as e:
-            print(f"Error: {e}")
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
-
-    return JsonResponse({"status": "error", "message": "Método no permitido"}, status=400)
 
 @api_view(["POST"])
 def create_student(request):
