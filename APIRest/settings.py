@@ -9,12 +9,16 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# settings.py
+LANGUAGE_CODE = 'es-es'
+TIME_ZONE = 'America/Caracas'  # Zona horaria de Venezuela
+USE_I18N = True
+USE_TZ = True
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -32,6 +36,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'corsheaders',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -42,6 +47,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,11 +59,12 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'APIRest.urls'
+CORS_ALLOW_ALL_ORIGINS = True
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -77,10 +85,10 @@ WSGI_APPLICATION = 'APIRest.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'CarnetValidatorDB',            # El nombre de tu base de datos en phpMyAdmin
-        'USER': 'admin',              
-        'PASSWORD': 'admin',          
-        'HOST': 'localhost',          
+        'NAME': 'carlos0$default',            # El nombre de tu base de datos en phpMyAdmin
+        'USER': 'carlos0',              
+        'PASSWORD': 'D1n3r4r1o',          
+        'HOST': 'carlos0.mysql.pythonanywhere-services.com',          
         'PORT': '3306',               # Puerto por defecto de MySQL
     }
 }
@@ -122,8 +130,8 @@ USE_TZ = True
 
 import os
 
-STATIC_URL = 'static/'
-
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # Esto es lo que permite que el campo ImageField funcione
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
